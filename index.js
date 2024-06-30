@@ -4,7 +4,7 @@ import { createServer } from "http";
 import { Server } from "socket.io";
 import { customAlphabet } from 'nanoid';
 
-const httpServer = createServer();
+const httpServer = createServer(app);
 const io = new Server(httpServer, {
     cors: {
         origin: '*'
