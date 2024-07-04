@@ -13,6 +13,7 @@ const io = new Server(httpServer, {
 
 const activeRooms = {};
 let prevPlayerTotalScore = 0;
+let selectedMode = 'multiplayer';
 
 io.on("connection", (socket) => {
     socket.on('create room', (userName) => {
@@ -57,6 +58,18 @@ io.on("connection", (socket) => {
         }
     });
     
+    socket.on('play with cpu', (userName) => {
+        const roomId = generateRoomId();
+        socket.join(roomId);
+        activeRooms[roomId] = {
+            totalScore: 0,
+            isBothPlayed: false,
+            users: [{ userName: userName, score: 0, id: socket.id, makeMove: false }, { userName: 'CPU', score: 0, id: 'CPU', makeMove: false }]
+        }
+        selectedMode = 'singleplayer';
+        io.to(roomId).emit('can play now', roomId, activeRooms);
+    });
+    
     socket.on('play again', (roomId) => {
         console.log(activeRooms[roomId])
         activeRooms[roomId].totalScore = 0;
@@ -67,18 +80,21 @@ io.on("connection", (socket) => {
         activeRooms[roomId].isBothPlayed = false;
         io.to(roomId).emit('restartMatch', activeRooms);
     })
-    
-    
 
     socket.on('player move', (roomId, move) => {
         const index = activeRooms[roomId].users.findIndex(user => user.id === socket.id);
         activeRooms[roomId].users[index].makeMove = true;
         activeRooms[roomId].users[index].score = move;
-
+        if (selectedMode === 'singleplayer') {
+            const cpuMove = generateRandomNumber();
+            console.log('cpuMove', cpuMove)
+            const cpuIndex = activeRooms[roomId].users.findIndex(user => user.userName === 'CPU');
+            activeRooms[roomId].users[cpuIndex].score = cpuMove;
+            activeRooms[roomId].users[cpuIndex].makeMove = true;
+        }
         if (!activeRooms[roomId].users[0]?.makeMove || !activeRooms[roomId].users[1]?.makeMove) {
             return;
         }
-
         else {
             if (activeRooms[roomId].users[0].score === activeRooms[roomId].users[1].score && activeRooms[roomId].users[0].score) {
                 activeRooms[roomId].users[0].score = 0;
@@ -128,6 +144,12 @@ io.on("connection", (socket) => {
     });
 });
 
+
+function generateRandomNumber() {
+    const alphabet = '123456';
+    const generateAlphabeticId = customAlphabet(alphabet, 1);
+    return generateAlphabeticId();
+}
 
 function generateRoomId() {
     const alphabet = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
